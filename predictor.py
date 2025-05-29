@@ -1,25 +1,16 @@
-import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
-from datetime import timedelta
+import pandas as pd
 
-def train_predictor(df, column='indoor_footfall'):
+def train_predictor(df, column):
     ts = df.set_index('timestamp')[column]
-    ts = ts.asfreq('H').interpolate()
 
-    # Train ARIMA
     model = ARIMA(ts, order=(2, 1, 2))
     model_fit = model.fit()
 
-    # Forecast next 24 hours
-    forecast = model_fit.forecast(steps=24)
-    last_time = df['timestamp'].max()
+    forecast = model_fit.get_forecast(steps=24)
+    forecast_df = forecast.summary_frame()
+    forecast_df = forecast_df.reset_index()
+    forecast_df.rename(columns={'index': 'ds', 'mean': 'yhat'}, inplace=True)
 
-    forecast_df = pd.DataFrame({
-        'ds': [last_time + timedelta(hours=i + 1) for i in range(24)],
-        'yhat': forecast
-    })
-    
-    print(f"=== Forecast for {column} ===")
-    print(forecast_df)
-    
     return forecast_df
+
