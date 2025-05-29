@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import requests
 from db import SessionLocal, Forecast, CleaningTask
+from datetime import datetime
 import altair as alt
+from streamlit_echarts import st_echarts
 
 st.set_page_config(page_title="CleanSweep AI Dashboard", layout="wide")
 
@@ -11,21 +13,45 @@ page = st.sidebar.selectbox("Select Page", ["Dashboard", "History", "Task Report
 
 # Function to load data from DB
 def load_data():
-    session = SessionLocal()
+    try:
+        session = SessionLocal()
 
-    indoor_forecast = session.query(Forecast).filter(Forecast.location_type == 'indoor').all()
-    road_forecast = session.query(Forecast).filter(Forecast.location_type == 'road').all()
-    indoor_tasks = session.query(CleaningTask).filter(CleaningTask.location_type == 'indoor').all()
-    road_tasks = session.query(CleaningTask).filter(CleaningTask.location_type == 'road').all()
+        indoor_forecast = session.query(Forecast).filter(Forecast.location_type == 'indoor').all()
+        road_forecast = session.query(Forecast).filter(Forecast.location_type == 'road').all()
+        indoor_tasks = session.query(CleaningTask).filter(CleaningTask.location_type == 'indoor').all()
+        road_tasks = session.query(CleaningTask).filter(CleaningTask.location_type == 'road').all()
 
-    session.close()
+        session.close()
 
-    indoor_df = pd.DataFrame([{'ds': row.timestamp, 'yhat': row.predicted_value} for row in indoor_forecast])
-    road_df = pd.DataFrame([{'ds': row.timestamp, 'yhat': row.predicted_value} for row in road_forecast])
-    indoor_task_df = pd.DataFrame([{'time': task.time, 'task': task.task, 'priority': task.priority, 'location': 'Indoor'} for task in indoor_tasks])
-    road_task_df = pd.DataFrame([{'time': task.time, 'task': task.task, 'priority': task.priority, 'location': 'Road'} for task in road_tasks])
+        # Convert to DataFrames with proper datetime handling
+        indoor_df = pd.DataFrame([{
+            'ds': pd.to_datetime(row.timestamp),
+            'yhat': float(row.predicted_value)
+        } for row in indoor_forecast])
+        
+        road_df = pd.DataFrame([{
+            'ds': pd.to_datetime(row.timestamp),
+            'yhat': float(row.predicted_value)
+        } for row in road_forecast])
+        
+        indoor_task_df = pd.DataFrame([{
+            'time': pd.to_datetime(task.time),
+            'task': task.task,
+            'priority': task.priority,
+            'location': 'Indoor'
+        } for task in indoor_tasks])
+        
+        road_task_df = pd.DataFrame([{
+            'time': pd.to_datetime(task.time),
+            'task': task.task,
+            'priority': task.priority,
+            'location': 'Road'
+        } for task in road_tasks])
 
-    return indoor_df, road_df, indoor_task_df, road_task_df
+        return indoor_df, road_df, indoor_task_df, road_task_df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
 # Color map for priority levels
 def priority_color(priority):
@@ -125,16 +151,14 @@ if page == "Dashboard":
             st.write("No road cleaning tasks matching filter.")
 
 elif page == "History":
-    from streamlit_echarts import st_echarts
-
     st.title("📜 History of Forecasts and Cleaning Tasks")
 
     indoor_df, road_df, indoor_task_df, road_task_df = load_data()
 
     # Sidebar date selector
     st.sidebar.subheader("📅 Historical Trends Filter")
-    min_date = min(indoor_df['ds'].min(), road_df['ds'].min())
-    max_date = max(indoor_df['ds'].max(), road_df['ds'].max())
+    min_date = min(indoor_df['ds'].min(), road_df['ds'].min()) if not indoor_df.empty and not road_df.empty else datetime.now()
+    max_date = max(indoor_df['ds'].max(), road_df['ds'].max()) if not indoor_df.empty and not road_df.empty else datetime.now()
     start_date = st.sidebar.date_input("Start Date", min_date.date() if pd.notnull(min_date) else None)
     end_date = st.sidebar.date_input("End Date", max_date.date() if pd.notnull(max_date) else None)
 
@@ -155,7 +179,7 @@ elif page == "History":
             (road_task_df['time'] <= pd.Timestamp(end_date))
         ]
 
-        # ---------- 📊 KPI CIRCLES ----------
+        #  KPI CIRCLES ----------
         st.subheader("🔘 Summary Overview (Selected Dates)")
 
         avg_indoor = round(filtered_indoor['yhat'].mean(), 1) if not filtered_indoor.empty else 0
@@ -169,38 +193,37 @@ elif page == "History":
         with col_kpi1:
             st.markdown("**📊 Avg Indoor Footfall**")
             st_echarts({
-        "animationDuration": 5000,
-        "animationEasing": "elasticOut",
-        "series": [{
-            "type": 'gauge',
-            "progress": {"show": True},
-            "detail": {
-                "valueAnimation": True,
-                "formatter": f'{avg_indoor}',
-            },
-            "data": [{"value": avg_indoor, "name": "Indoor"}],
-            "max": 100
-        }]
-    }, height="200px")
+                "animationDuration": 5000,
+                "animationEasing": "elasticOut",
+                "series": [{
+                    "type": 'gauge',
+                    "progress": {"show": True},
+                    "detail": {
+                        "valueAnimation": True,
+                        "formatter": f'{avg_indoor}',
+                    },
+                    "data": [{"value": avg_indoor, "name": "Indoor"}],
+                    "max": 100
+                }]
+            }, height="200px")
 
         with col_kpi2:
             st.markdown("**🚗 Avg Road Traffic**")
             st_echarts({
-        "animationDuration": 5000,
-        "animationEasing": "cubicOut",
-        "series": [{
-            "type": 'gauge',
-            "progress": {"show": True},
-            "detail": {
-                "valueAnimation": True,
-                "formatter": f'{avg_road}',
-            },
-            "data": [{"value": avg_road, "name": "Road"}],
-            "max": 120
-        }]
-    }, height="200px")
-    
-    
+                "animationDuration": 5000,
+                "animationEasing": "cubicOut",
+                "series": [{
+                    "type": 'gauge',
+                    "progress": {"show": True},
+                    "detail": {
+                        "valueAnimation": True,
+                        "formatter": f'{avg_road}',
+                    },
+                    "data": [{"value": avg_road, "name": "Road"}],
+                    "max": 120
+                }]
+            }, height="200px")
+
         with col_kpi3:
             st.markdown("**🧹 Tasks in Range**")
             st_echarts({
@@ -217,20 +240,26 @@ elif page == "History":
                 }]
             }, height="220px")
 
-        #  LINE GRAPHS 
+        # LINE GRAPHS 
         st.subheader("📈 Historical Traffic Trends")
 
         st.markdown("### 🧍 Indoor Footfall")
-        indoor_chart = alt.Chart(filtered_indoor).mark_line(color='green').encode(
-            x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
-        ).properties(height=300, title='Indoor Footfall Over Time')
-        st.altair_chart(indoor_chart, use_container_width=True)
+        if not filtered_indoor.empty:
+            indoor_chart = alt.Chart(filtered_indoor).mark_line(color='green').encode(
+                x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
+            ).properties(height=300, title='Indoor Footfall Over Time')
+            st.altair_chart(indoor_chart, use_container_width=True)
+        else:
+            st.write("No indoor traffic data available for selected period.")
 
         st.markdown("### 🛣️ Road Traffic")
-        road_chart = alt.Chart(filtered_road).mark_line(color='orange').encode(
-            x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
-        ).properties(height=300, title='Road Traffic Over Time')
-        st.altair_chart(road_chart, use_container_width=True)
+        if not filtered_road.empty:
+            road_chart = alt.Chart(filtered_road).mark_line(color='orange').encode(
+                x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
+            ).properties(height=300, title='Road Traffic Over Time')
+            st.altair_chart(road_chart, use_container_width=True)
+        else:
+            st.write("No road traffic data available for selected period.")
 
         # DATA TABLES 
         st.subheader("📊 Historical Forecast Data")
@@ -258,8 +287,7 @@ elif page == "History":
 
     else:
         st.info("📅 Please select both start and end dates to view historical data.")
-        
-        
+
 elif page == "Task Report":
     st.title("📊 Task Report & Export")
 

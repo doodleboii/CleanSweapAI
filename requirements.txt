@@ -5,3 +5,7 @@ pandas
 statsmodels
 requests
 python-telegram-bot==13.15
+streamlit
+altair
+streamlit-echarts
+
