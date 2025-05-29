@@ -125,99 +125,125 @@ if page == "Dashboard":
             st.write("No road cleaning tasks matching filter.")
 
 elif page == "History":
+    from streamlit_echarts import st_echarts
+
     st.title("📜 History of Forecasts and Cleaning Tasks")
 
     indoor_df, road_df, indoor_task_df, road_task_df = load_data()
 
-    st.sidebar.subheader("Historical Trends Filter")
+    # Sidebar date selector
+    st.sidebar.subheader("📅 Historical Trends Filter")
+    min_date = min(indoor_df['ds'].min(), road_df['ds'].min())
+    max_date = max(indoor_df['ds'].max(), road_df['ds'].max())
+    start_date = st.sidebar.date_input("Start Date", min_date.date() if pd.notnull(min_date) else None)
+    end_date = st.sidebar.date_input("End Date", max_date.date() if pd.notnull(max_date) else None)
 
-    min_date = min(indoor_df['ds'].min() if not indoor_df.empty else None, road_df['ds'].min() if not road_df.empty else None)
-    max_date = max(indoor_df['ds'].max() if not indoor_df.empty else None, road_df['ds'].max() if not road_df.empty else None)
+    if start_date and end_date:
+        # Filter forecasts
+        mask_indoor = (indoor_df['ds'] >= pd.Timestamp(start_date)) & (indoor_df['ds'] <= pd.Timestamp(end_date))
+        mask_road = (road_df['ds'] >= pd.Timestamp(start_date)) & (road_df['ds'] <= pd.Timestamp(end_date))
+        filtered_indoor = indoor_df[mask_indoor]
+        filtered_road = road_df[mask_road]
 
-    if min_date is None or max_date is None:
-        st.info("No forecast data available to filter.")
+        # Filter tasks
+        indoor_task_df_filtered = indoor_task_df[
+            (indoor_task_df['time'] >= pd.Timestamp(start_date)) &
+            (indoor_task_df['time'] <= pd.Timestamp(end_date))
+        ]
+        road_task_df_filtered = road_task_df[
+            (road_task_df['time'] >= pd.Timestamp(start_date)) &
+            (road_task_df['time'] <= pd.Timestamp(end_date))
+        ]
+
+        # ---------- 📊 KPI CIRCLES ----------
+        st.subheader("🔘 Summary Overview (Selected Dates)")
+
+        avg_indoor = round(filtered_indoor['yhat'].mean(), 1) if not filtered_indoor.empty else 0
+        avg_road = round(filtered_road['yhat'].mean(), 1) if not filtered_road.empty else 0
+
+        total_indoor_tasks = indoor_task_df_filtered.shape[0]
+        total_road_tasks = road_task_df_filtered.shape[0]
+
+        col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+
+        with col_kpi1:
+            st.markdown("**📊 Avg Indoor Footfall**")
+            st_echarts({
+                "series": [{
+                    "type": 'gauge',
+                    "progress": {"show": True},
+                    "detail": {"valueAnimation": True, "formatter": f'{avg_indoor}'},
+                    "data": [{"value": avg_indoor, "name": "Indoor"}],
+                    "max": 100
+                }]
+            }, height="200px")
+
+        with col_kpi2:
+            st.markdown("**🚗 Avg Road Traffic**")
+            st_echarts({
+                "series": [{
+                    "type": 'gauge',
+                    "progress": {"show": True},
+                    "detail": {"valueAnimation": True, "formatter": f'{avg_road}'},
+                    "data": [{"value": avg_road, "name": "Road"}],
+                    "max": 120
+                }]
+            }, height="200px")
+
+        with col_kpi3:
+            st.markdown("**🧹 Tasks in Range**")
+            st_echarts({
+                "series": [{
+                    "type": "pie",
+                    "radius": ["40%", "70%"],
+                    "avoidLabelOverlap": False,
+                    "label": {"show": False},
+                    "emphasis": {"label": {"show": True, "fontSize": "18", "fontWeight": "bold"}},
+                    "data": [
+                        {"value": total_indoor_tasks, "name": "Indoor"},
+                        {"value": total_road_tasks, "name": "Road"}
+                    ]
+                }]
+            }, height="220px")
+
+        # ---------- 📈 LINE GRAPHS ----------
+        st.subheader("📈 Historical Traffic Trends")
+
+        st.markdown("### 🧍 Indoor Footfall")
+        indoor_chart = alt.Chart(filtered_indoor).mark_line(color='green').encode(
+            x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
+        ).properties(height=300, title='Indoor Footfall Over Time')
+        st.altair_chart(indoor_chart, use_container_width=True)
+
+        st.markdown("### 🛣️ Road Traffic")
+        road_chart = alt.Chart(filtered_road).mark_line(color='orange').encode(
+            x='ds:T', y='yhat:Q', tooltip=['ds:T', 'yhat:Q']
+        ).properties(height=300, title='Road Traffic Over Time')
+        st.altair_chart(road_chart, use_container_width=True)
+
+        # ---------- 📊 DATA TABLES ----------
+        st.subheader("📊 Historical Forecast Data")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Indoor Forecast History")
+            st.dataframe(filtered_indoor)
+
+        with col2:
+            st.markdown("#### Road Forecast History")
+            st.dataframe(filtered_road)
+
+        # ---------- 🧼 TASK TABLES ----------
+        st.subheader("🧼 Cleaning Task History")
+
+        col3, col4 = st.columns(2)
+        with col3:
+            st.markdown("#### Indoor Cleaning Tasks")
+            st.dataframe(indoor_task_df_filtered)
+
+        with col4:
+            st.markdown("#### Road Cleaning Tasks")
+            st.dataframe(road_task_df_filtered)
+
     else:
-        start_date = st.sidebar.date_input("Start Date", min_date.date())
-        end_date = st.sidebar.date_input("End Date", max_date.date())
-
-        if start_date > end_date:
-            st.error("Error: Start date must be before end date.")
-        else:
-            mask_indoor = (indoor_df['ds'] >= pd.Timestamp(start_date)) & (indoor_df['ds'] <= pd.Timestamp(end_date))
-            mask_road = (road_df['ds'] >= pd.Timestamp(start_date)) & (road_df['ds'] <= pd.Timestamp(end_date))
-
-            filtered_indoor = indoor_df[mask_indoor]
-            filtered_road = road_df[mask_road]
-
-            st.subheader("📈 Historical Traffic Trends")
-
-            if not filtered_indoor.empty:
-                indoor_chart = alt.Chart(filtered_indoor).mark_line(color='green').encode(
-                    x='ds:T',
-                    y='yhat:Q',
-                    tooltip=['ds:T', 'yhat:Q']
-                ).interactive().properties(height=300, title="Indoor Footfall Over Time")
-                st.altair_chart(indoor_chart, use_container_width=True)
-            else:
-                st.write("No indoor forecast data in selected range.")
-
-            if not filtered_road.empty:
-                road_chart = alt.Chart(filtered_road).mark_line(color='orange').encode(
-                    x='ds:T',
-                    y='yhat:Q',
-                    tooltip=['ds:T', 'yhat:Q']
-                ).interactive().properties(height=300, title="Road Traffic Over Time")
-                st.altair_chart(road_chart, use_container_width=True)
-            else:
-                st.write("No road forecast data in selected range.")
-
-            st.subheader("📊 Historical Data Tables")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("### Indoor Forecast History")
-                st.dataframe(filtered_indoor)
-
-            with col2:
-                st.markdown("### Road Forecast History")
-                st.dataframe(filtered_road)
-
-            st.subheader("🧹 Cleaning Task History")
-
-            indoor_tasks_filtered = indoor_task_df[(indoor_task_df['time'] >= pd.Timestamp(start_date)) & (indoor_task_df['time'] <= pd.Timestamp(end_date))]
-            road_tasks_filtered = road_task_df[(road_task_df['time'] >= pd.Timestamp(start_date)) & (road_task_df['time'] <= pd.Timestamp(end_date))]
-
-            col3, col4 = st.columns(2)
-
-            with col3:
-                st.markdown("### Indoor Cleaning Tasks")
-                if not indoor_tasks_filtered.empty:
-                    st.dataframe(style_priority(indoor_tasks_filtered))
-                else:
-                    st.write("No indoor cleaning tasks in this date range.")
-
-            with col4:
-                st.markdown("### Road Cleaning Tasks")
-                if not road_tasks_filtered.empty:
-                    st.dataframe(style_priority(road_tasks_filtered))
-                else:
-                    st.write("No road cleaning tasks in this date range.")
-
-elif page == "Task Report":
-    st.title("📊 Downloadable Task Report")
-    _, _, indoor_task_df, road_task_df = load_data()
-
-    all_tasks = pd.concat([indoor_task_df, road_task_df], ignore_index=True)
-    all_tasks = all_tasks.sort_values(by='time')
-
-    if all_tasks.empty:
-        st.info("No cleaning tasks data available.")
-    else:
-        st.dataframe(style_priority(all_tasks))
-
-        csv = all_tasks.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download Task Report as CSV",
-            data=csv,
-            file_name="cleaning_tasks_report.csv",
-            mime='text/csv'
-        )
+        st.info("📅 Please select both start and end dates to view historical data.")
