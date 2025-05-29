@@ -169,27 +169,38 @@ elif page == "History":
         with col_kpi1:
             st.markdown("**📊 Avg Indoor Footfall**")
             st_echarts({
-                "series": [{
-                    "type": 'gauge',
-                    "progress": {"show": True},
-                    "detail": {"valueAnimation": True, "formatter": f'{avg_indoor}'},
-                    "data": [{"value": avg_indoor, "name": "Indoor"}],
-                    "max": 100
-                }]
-            }, height="200px")
+        "animationDuration": 5000,
+        "animationEasing": "elasticOut",
+        "series": [{
+            "type": 'gauge',
+            "progress": {"show": True},
+            "detail": {
+                "valueAnimation": True,
+                "formatter": f'{avg_indoor}',
+            },
+            "data": [{"value": avg_indoor, "name": "Indoor"}],
+            "max": 100
+        }]
+    }, height="200px")
 
         with col_kpi2:
             st.markdown("**🚗 Avg Road Traffic**")
             st_echarts({
-                "series": [{
-                    "type": 'gauge',
-                    "progress": {"show": True},
-                    "detail": {"valueAnimation": True, "formatter": f'{avg_road}'},
-                    "data": [{"value": avg_road, "name": "Road"}],
-                    "max": 120
-                }]
-            }, height="200px")
-
+        "animationDuration": 5000,
+        "animationEasing": "cubicOut",
+        "series": [{
+            "type": 'gauge',
+            "progress": {"show": True},
+            "detail": {
+                "valueAnimation": True,
+                "formatter": f'{avg_road}',
+            },
+            "data": [{"value": avg_road, "name": "Road"}],
+            "max": 120
+        }]
+    }, height="200px")
+    
+    
         with col_kpi3:
             st.markdown("**🧹 Tasks in Range**")
             st_echarts({
@@ -206,7 +217,7 @@ elif page == "History":
                 }]
             }, height="220px")
 
-        # ---------- 📈 LINE GRAPHS ----------
+        #  LINE GRAPHS 
         st.subheader("📈 Historical Traffic Trends")
 
         st.markdown("### 🧍 Indoor Footfall")
@@ -221,7 +232,7 @@ elif page == "History":
         ).properties(height=300, title='Road Traffic Over Time')
         st.altair_chart(road_chart, use_container_width=True)
 
-        # ---------- 📊 DATA TABLES ----------
+        # DATA TABLES 
         st.subheader("📊 Historical Forecast Data")
 
         col1, col2 = st.columns(2)
@@ -233,7 +244,7 @@ elif page == "History":
             st.markdown("#### Road Forecast History")
             st.dataframe(filtered_road)
 
-        # ---------- 🧼 TASK TABLES ----------
+        # -TASK TABLES 
         st.subheader("🧼 Cleaning Task History")
 
         col3, col4 = st.columns(2)
@@ -247,3 +258,67 @@ elif page == "History":
 
     else:
         st.info("📅 Please select both start and end dates to view historical data.")
+        
+        
+elif page == "Task Report":
+    st.title("📊 Task Report & Export")
+
+    # Load data
+    _, _, indoor_task_df, road_task_df = load_data()
+
+    # Merge & sort all tasks
+    all_tasks = pd.concat([indoor_task_df, road_task_df], ignore_index=True)
+    all_tasks = all_tasks.sort_values(by='time')
+
+    # Add some spacing
+    st.markdown("### 🧹 All Scheduled Cleaning Tasks")
+    st.markdown("Filter, view, and export all cleaning tasks from indoor and road locations.")
+
+    # Show stats at top
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📍 Indoor Tasks", len(indoor_task_df))
+    with col2:
+        st.metric("🛣️ Road Tasks", len(road_task_df))
+    with col3:
+        st.metric("🧾 Total Tasks", len(all_tasks))
+
+    st.markdown("---")
+
+    # Display table with colorful priority badges
+    if all_tasks.empty:
+        st.warning("⚠️ No cleaning task data available.")
+    else:
+        def color_priority(val):
+            if val == 'High':
+                return 'background-color: #ffcccc; color: red; font-weight: bold;'
+            elif val == 'Medium':
+                return 'background-color: #fff2cc; color: orange; font-weight: bold;'
+            elif val == 'Low':
+                return 'background-color: #ccffcc; color: green; font-weight: bold;'
+            return ''
+
+        styled_df = all_tasks.style.applymap(color_priority, subset=['priority'])
+
+        st.dataframe(styled_df, use_container_width=True)
+
+        # Export button
+        st.markdown("### ⬇️ Download")
+        st.markdown("Export the full task report below:")
+        csv = all_tasks.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Cleaning Tasks as CSV",
+            data=csv,
+            file_name="cleaning_tasks_report.csv",
+            mime='text/csv',
+            help="Click to download the task schedule in CSV format."
+        )
+
+    # Add a soft footer message
+    st.markdown("---")
+    st.markdown(
+        "<div style='text-align: center; color: grey; font-size: 0.9em;'>"
+        "Powered by <b>CleanSweep AI</b> | Automating Facility Cleanliness Predictively 🚀"
+        "</div>",
+        unsafe_allow_html=True
+    )
