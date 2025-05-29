@@ -1,0 +1,7 @@
+flask
+sqlalchemy
+apscheduler
+pandas
+statsmodels
+requests
+python-telegram-bot==13.15
