@@ -60,7 +60,7 @@ def priority_color(priority):
     return colors.get(priority, "white")
 
 def style_priority(df):
-    return df.style.applymap(lambda v: f"background-color: {priority_color(v)}", subset=['priority'])
+    return df.style.map(lambda v: f"background-color: {priority_color(v)}", subset=['priority'])
 
 if page == "Dashboard":
     st.title("🧹 CleanSweep AI – Predictive Cleaning Dashboard")
