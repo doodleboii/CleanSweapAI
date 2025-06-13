@@ -11,7 +11,7 @@ def adjust_threshold(dt):
     else:
         base_threshold = 25
 
-    # Weekends (Saturday=5, Sunday=6) are busier outdoors
+    # Weekends are busier outdoors
     if weekday >= 5:
         base_threshold += 5
 

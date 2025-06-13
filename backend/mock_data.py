@@ -50,7 +50,7 @@ def generate_mock_data(start_date=None, periods=72, freq='H', noise_level=5):
         'road_traffic': road_traffic
     })
 
-    # Ensure timestamps are timezone naive (or convert to UTC if needed)
+    # Ensure timestamps are timezone naive 
     df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_localize(None)
 
     return df

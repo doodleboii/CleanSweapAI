@@ -26,7 +26,7 @@ tasks = [
     {"task": "Mop floors", "time": "1:00 PM", "priority": "low"},
 ]
 
-# ---------------------- ASYNC NOTIFICATION ----------------------
+# ASYNC NOTIFICATION 
 
 async def send_notification(task: str, time: str, priority: str) -> Optional[bool]:
     """Send a notification about a cleaning task."""
@@ -50,7 +50,7 @@ async def send_notification(task: str, time: str, priority: str) -> Optional[boo
         logger.error(f"Error sending notification: {e}")
         return False
 
-# ---------------------- COMMAND HANDLERS ----------------------
+# COMMAND HANDLERS 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send welcome message."""
