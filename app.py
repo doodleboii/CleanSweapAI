@@ -187,5 +187,5 @@ def test_notification():
         }), 500
 
 if __name__ == "__main__":
-    print("Starting Flask app...")
-    app.run(debug=True)
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=8080)
