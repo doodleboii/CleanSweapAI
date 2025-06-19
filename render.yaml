@@ -1,28 +1,32 @@
 services:
   # Flask Backend Service
   - type: web
-    name: cleansweep-backend
+    name: cleansweep-api
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && python app.py
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.9.0
+        value: 3.12.3
       - key: FLASK_ENV
         value: production
       - key: FLASK_APP
         value: app.py
-
-  # Telegram Bot Service
-  - type: worker
-    name: cleansweep-telegram-bot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd backend && python telegram_bot.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.9.0
+      - key: DATABASE_URL
+        sync: false
       - key: BOT_TOKEN
         sync: false
       - key: CHAT_ID
-        sync: false 
+        sync: false
+
+  # Streamlit Frontend Service
+  - type: web
+    name: cleansweep-frontend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && streamlit run streamlit_app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.18
+      - key: BACKEND_URL
+        value: https://cleansweep-backend.onrender.com 
