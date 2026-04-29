@@ -60,7 +60,7 @@ def priority_color(priority):
     return {"High": "#FF4C4C", "Medium": "#FFA500", "Low": "#90EE90"}.get(priority, "white")
 
 def style_priority(df):
-    return df.style.map(lambda v: f"background-color: {priority_color(v)}", subset=['priority'])
+    return df.style.applymap(lambda v: f"background-color: {priority_color(v)}", subset=['priority'])
 # ----------------- Dashboard Page --------------------
 if page == "Dashboard":
     st.title("🧹 CleanSweep AI – Predictive Cleaning Dashboard")
@@ -70,10 +70,10 @@ if page == "Dashboard":
             try:
                 response = requests.get("http://127.0.0.1:5000/predict-cleaning")
                 if response.status_code == 200:
-                    st.success("✅ Predictions updated successfully!")
+                    st.success(" Predictions updated successfully!")
                     st.rerun()
                 else:
-                    st.error("❌ Failed to update. Check if Flask server is running.")
+                    st.error(" Failed to update. Check if Flask server is running.")
             except Exception as e:
                 st.error(f"Error connecting to prediction API: {e}")
 
