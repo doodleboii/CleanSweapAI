@@ -28,10 +28,8 @@ tasks = [
 
 # ASYNC NOTIFICATION 
 
-async def send_notification(task: str, time: str, priority: str):
+async def send_notification(task: str, time: str, priority: str) -> Optional[bool]:
     """Send a notification about a cleaning task."""
-    print("🚀 Sending notification...")  # ADD THIS
-
     try:
         message = (
             f"🧹 *New Cleaning Task Scheduled!*\n\n"
@@ -39,18 +37,17 @@ async def send_notification(task: str, time: str, priority: str):
             f"⏰ Time: {time}\n"
             f"🔔 Priority: {priority.capitalize()}"
         )
-
+        
         result = await bot.send_message(
             chat_id=CHAT_ID,
             text=message,
             parse_mode='Markdown'
         )
-
-        print("✅ SENT!")   # ADD THIS
+        
+        logger.info(f"Notification sent successfully! Message ID: {result.message_id}")
         return True
-
     except Exception as e:
-        print("❌ ERROR:", e)
+        logger.error(f"Error sending notification: {e}")
         return False
 
 # COMMAND HANDLERS 
@@ -167,7 +164,7 @@ async def test(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ---------------------- BOT RUNNER ----------------------
 
-def main():
+async def main():
     """Main function to run the bot."""
     try:
         application = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -188,10 +185,16 @@ def main():
         logger.info("- /help - Show all commands")
         
         # Run the bot
-        application.run_polling(drop_pending_updates=True)
+        await application.initialize()
+        await application.start()
+        await application.run_polling(drop_pending_updates=True)
         
     except Exception as e:
         logger.error(f"Bot failed: {e}")
+    finally:
+        if 'application' in locals():
+            await application.stop()
+            await application.shutdown()
 
 # ---------------------- ENTRY POINT ----------------------
 
@@ -199,6 +202,6 @@ if __name__ == '__main__':
     try:
         if sys.platform.startswith('win'):
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        main()
+        asyncio.run(main())
     except Exception as e:
         print(f"Startup failed: {e}")

@@ -12,12 +12,16 @@ class TrafficData(Base):
     location_type = Column(String)  # 'indoor' or 'road'
     value = Column(Integer)
 
+# UPDATED — Added lower, upper, error columns for confidence intervals and MAE
 class Forecast(Base):
     __tablename__ = 'forecast'
     id = Column(Integer, primary_key=True)
     timestamp = Column(DateTime)
     location_type = Column(String)  # 'indoor' or 'road'
     predicted_value = Column(Float)
+    lower = Column(Float, nullable=True)       # NEW — confidence interval lower bound
+    upper = Column(Float, nullable=True)       # NEW — confidence interval upper bound
+    error = Column(Float, nullable=True)       # MAE value for this forecast batch
 
 class CleaningTask(Base):
     __tablename__ = 'cleaning_tasks'

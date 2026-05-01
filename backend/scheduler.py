@@ -2,6 +2,7 @@ from datetime import datetime
 
 
 def adjust_threshold(dt):
+    """Static threshold based on time-of-day and weekday. Used as fallback."""
     hour = dt.hour
     weekday = dt.weekday()  # Monday=0, Sunday=6
 
@@ -17,16 +18,40 @@ def adjust_threshold(dt):
 
     return base_threshold
 
-def schedule_cleaning(forecast_df, location_type):
+
+# UPDATED — Dynamic thresholds using historical data mean
+def schedule_cleaning(forecast_df, location_type, data_mean=None):
+    """
+    Schedule cleaning tasks based on forecast values.
+
+    If data_mean is provided, uses dynamic thresholds:
+        High:   value > mean * 1.3
+        Medium: mean * 0.7 to mean * 1.3
+        Low:    value < mean * 0.7
+
+    Falls back to static time-based thresholds if data_mean is None.
+    """
     tasks = []
     for _, row in forecast_df.iterrows():
-        threshold = adjust_threshold(row['ds'])
-        if row['yhat'] >= threshold:
-            priority = 'High'
-        elif row['yhat'] >= threshold * 0.7:
-            priority = 'Medium'
+        value = row['yhat']
+
+        if data_mean is not None and data_mean > 0:
+            # NEW — Dynamic threshold based on historical average
+            if value > data_mean * 1.3:
+                priority = 'High'
+            elif value >= data_mean * 0.7:
+                priority = 'Medium'
+            else:
+                priority = 'Low'
         else:
-            priority = 'Low'
+            # Fallback to static time-based thresholds
+            threshold = adjust_threshold(row['ds'])
+            if value >= threshold:
+                priority = 'High'
+            elif value >= threshold * 0.7:
+                priority = 'Medium'
+            else:
+                priority = 'Low'
 
         tasks.append({
             'time': row['ds'],
@@ -34,4 +59,3 @@ def schedule_cleaning(forecast_df, location_type):
             'priority': priority
         })
     return tasks
-
